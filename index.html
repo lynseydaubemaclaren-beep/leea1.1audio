@@ -23,6 +23,16 @@ button.done{background:var(--accent);border-color:var(--accent);color:var(--acce
 button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
 .empty{color:var(--muted);line-height:1.7}
 code{font:.85em ui-monospace,Menlo,Consolas,monospace;background:var(--active);padding:1px 5px;border-radius:5px}
+#app:has(.grid){max-width:980px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
+.tile{background:var(--surface);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.tile .face{display:flex;align-items:center;justify-content:center;text-align:center;width:100%;min-height:88px;padding:12px;border:0;border-radius:0;background:transparent;font:600 .95rem/1.3 Georgia,serif;overflow-wrap:anywhere}
+.tile .face:hover{background:var(--active)}
+.tile .body{display:none;padding:0 16px 16px}
+.tile.open{grid-column:1/-1;border-color:var(--accent);box-shadow:0 0 0 2px var(--accent)}
+.tile.open .face{min-height:84px;font-size:1.5rem;background:var(--accent);color:var(--accent-ink);transition:min-height .2s}
+.tile.open .body{display:block;padding-top:16px}
+@media (prefers-reduced-motion:reduce){.tile.open .face{transition:none}}
 body.solo main{padding-top:14px;padding-bottom:14px}
 body.solo .card{margin:0}
 </style>
@@ -45,7 +55,7 @@ var TRACKS = [
 ];
 var FOLDER = "audio/";
 var OWNER = "lynseydaubemaclaren-beep";
-var REPO = "letsenjoyenglisha1.1";
+var REPO = "leea1.1audio";
 /* ---------------------------------------------------------- */
 
 (function(){
@@ -116,7 +126,7 @@ var REPO = "letsenjoyenglisha1.1";
 
   var h1=document.createElement('h1');h1.textContent='Lets Enjoy English A1.1 Audio';
   var sub=document.createElement('p');sub.className='sub';
-  sub.textContent='Play a track, or copy its link to use in Genially and other tools.';
+  sub.textContent='Tap a tile to open it and play the audio. Use the buttons to copy its link for Genially.';
   app.appendChild(h1);app.appendChild(sub);
 
   if(!TRACKS.length){
@@ -124,7 +134,45 @@ var REPO = "letsenjoyenglisha1.1";
     e.innerHTML='No tracks found. Upload audio files (mp3, wav, m4a, ogg, flac) to the <code>audio</code> folder of the repository, then reload this page.';
     app.appendChild(e);return;
   }
-  TRACKS.forEach(function(t){app.appendChild(card(t,false))});
+  var grid=document.createElement('div');grid.className='grid';
+  TRACKS.forEach(function(t){grid.appendChild(tile(t))});
+  app.appendChild(grid);
+  }
+
+  var openTile=null;
+  function closeTile(c){
+    c.classList.remove('open');
+    c.querySelector('.face').setAttribute('aria-expanded','false');
+    var a=c.querySelector('audio');if(a)a.pause();
+    if(openTile===c)openTile=null;
+  }
+  function tile(t){
+    var c=document.createElement('div');c.className='tile';
+    var f=document.createElement('button');f.type='button';f.className='face';
+    f.setAttribute('aria-expanded','false');f.textContent=t.title||t.file;
+    var body=document.createElement('div');body.className='body';
+    c.appendChild(f);c.appendChild(body);
+    var a=null;
+    f.onclick=function(){
+      if(c.classList.contains('open')){closeTile(c);return}
+      if(openTile)closeTile(openTile);
+      if(!a){
+        a=document.createElement('audio');a.controls=true;a.preload='auto';a.src=fileUrl(t);
+        body.appendChild(a);
+        var row=document.createElement('div');row.className='btns';
+        [['Copy file link',function(){return fileUrl(t)}],
+         ['Copy player link',function(){return playerUrl(t)}],
+         ['Copy embed code',function(){return embedCode(t)}]].forEach(function(p){
+          var b=document.createElement('button');b.type='button';b.textContent=p[0];
+          b.onclick=function(){copy(p[1](),b,p[0])};row.appendChild(b);
+        });
+        body.appendChild(row);
+      }
+      c.classList.add('open');f.setAttribute('aria-expanded','true');openTile=c;
+      a.play().catch(function(){});
+      c.scrollIntoView({block:'nearest',behavior:'smooth'});
+    };
+    return c;
   }
   loadTracks().then(start);
 })();
